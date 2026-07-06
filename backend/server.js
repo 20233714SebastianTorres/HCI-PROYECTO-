@@ -13,13 +13,15 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // =========================
-// BASIC ROUTES
+// BASIC ROUTES (IMPORTANTE PARA RENDER)
 // =========================
 
+// Evita "Cannot GET /"
 app.get("/", (req, res) => {
   res.send("HCI Backend running 🚀");
 });
 
+// Health check (RENDER LO USA)
 app.get("/healthz", (req, res) => {
   res.status(200).send("ok");
 });
@@ -44,9 +46,6 @@ const io = new Server(server, {
 const rooms = {};
 const roomTimers = {};
 const roomFlashcards = {};
-
-// 🔥 NUEVO: guardar dibujo por sala
-const roomDrawings = {};
 
 // =========================
 // SOCKET LOGIC
@@ -75,7 +74,6 @@ io.on("connection", (socket) => {
       rooms[roomId]
     );
 
-    // FLASHCARDS INIT
     if (!roomFlashcards[roomId]) {
       roomFlashcards[roomId] = [];
     }
@@ -83,16 +81,6 @@ io.on("connection", (socket) => {
     socket.emit(
       "flashcards-update",
       roomFlashcards[roomId]
-    );
-
-    // 🔥 WHITEBOARD HISTORY AL ENTRAR
-    if (!roomDrawings[roomId]) {
-      roomDrawings[roomId] = [];
-    }
-
-    socket.emit(
-      "whiteboard-history",
-      roomDrawings[roomId]
     );
   });
 
@@ -140,40 +128,13 @@ io.on("connection", (socket) => {
     }, 1000);
   });
 
-  // =========================
-  // WHITEBOARD (FIX + PERSISTENCIA)
-  // =========================
-
+  // WHITEBOARD
   socket.on("draw-start", (data) => {
-    const { roomId } = data;
-
-    if (!roomDrawings[roomId]) {
-      roomDrawings[roomId] = [];
-    }
-
-    roomDrawings[roomId].push({
-      type: "start",
-      x: data.x,
-      y: data.y,
-    });
-
-    socket.to(roomId).emit("draw-start", data);
+    socket.to(data.roomId).emit("draw-start", data);
   });
 
   socket.on("draw-move", (data) => {
-    const { roomId } = data;
-
-    if (!roomDrawings[roomId]) {
-      roomDrawings[roomId] = [];
-    }
-
-    roomDrawings[roomId].push({
-      type: "move",
-      x: data.x,
-      y: data.y,
-    });
-
-    socket.to(roomId).emit("draw-move", data);
+    socket.to(data.roomId).emit("draw-move", data);
   });
 
   // DISCONNECT
@@ -194,7 +155,7 @@ io.on("connection", (socket) => {
 });
 
 // =========================
-// PORT
+// PORT (IMPORTANTE EN RENDER)
 // =========================
 
 const PORT = process.env.PORT || 3001;

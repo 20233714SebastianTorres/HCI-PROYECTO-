@@ -5,6 +5,10 @@ function Whiteboard({ roomId }) {
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
 
+  // =========================
+  // SOCKET LISTENERS
+  // =========================
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -13,33 +17,33 @@ function Whiteboard({ roomId }) {
     ctx.lineCap = "round";
     ctx.strokeStyle = "#000";
 
-    const drawStart = (data) => {
-      const ctx = canvasRef.current.getContext("2d");
+    const handleDrawStart = (data) => {
       ctx.beginPath();
       ctx.moveTo(data.x, data.y);
     };
 
-    const drawMove = (data) => {
-      const ctx = canvasRef.current.getContext("2d");
+    const handleDrawMove = (data) => {
       ctx.lineTo(data.x, data.y);
       ctx.stroke();
     };
 
-    socket.on("draw-start", drawStart);
-    socket.on("draw-move", drawMove);
+    socket.on("draw-start", handleDrawStart);
+    socket.on("draw-move", handleDrawMove);
 
     return () => {
-      socket.off("draw-start", drawStart);
-      socket.off("draw-move", drawMove);
+      socket.off("draw-start", handleDrawStart);
+      socket.off("draw-move", handleDrawMove);
     };
   }, []);
 
-  // 🔥 FIX REAL DEL OFFSET (IMPORTANTE)
+  // =========================
+  // POSICIÓN DEL MOUSE
+  // =========================
+
   const getPos = (e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
 
-    // 👇 clave: escala entre canvas real y visual
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
@@ -48,6 +52,10 @@ function Whiteboard({ roomId }) {
       y: (e.clientY - rect.top) * scaleY,
     };
   };
+
+  // =========================
+  // DRAW EVENTS
+  // =========================
 
   const start = (e) => {
     const pos = getPos(e);
@@ -84,6 +92,10 @@ function Whiteboard({ roomId }) {
   const stop = () => {
     drawingRef.current = false;
   };
+
+  // =========================
+  // UI
+  // =========================
 
   return (
     <div className="whiteboard-container">
