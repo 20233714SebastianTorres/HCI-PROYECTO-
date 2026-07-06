@@ -5,30 +5,16 @@ const cors = require("cors");
 
 const app = express();
 
-// =========================
-// MIDDLEWARE
-// =========================
-
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-// =========================
-// BASIC ROUTES (IMPORTANTE PARA RENDER)
-// =========================
-
-// Evita "Cannot GET /"
 app.get("/", (req, res) => {
   res.send("HCI Backend running 🚀");
 });
 
-// Health check (RENDER LO USA)
 app.get("/healthz", (req, res) => {
   res.status(200).send("ok");
 });
-
-// =========================
-// SERVER
-// =========================
 
 const server = http.createServer(app);
 
@@ -46,9 +32,10 @@ const io = new Server(server, {
 const rooms = {};
 const roomTimers = {};
 const roomFlashcards = {};
+const roomDrawings = {}; // 🔥 WHITEBOARD STORAGE
 
 // =========================
-// SOCKET LOGIC
+// SOCKET
 // =========================
 
 io.on("connection", (socket) => {
@@ -59,6 +46,8 @@ io.on("connection", (socket) => {
     socket.join(roomId);
 
     if (!rooms[roomId]) rooms[roomId] = [];
+    if (!roomFlashcards[roomId]) roomFlashcards[roomId] = [];
+    if (!roomDrawings[roomId]) roomDrawings[roomId] = [];
 
     rooms[roomId] = rooms[roomId].filter(
       (u) => u.id !== socket.id
@@ -69,43 +58,29 @@ io.on("connection", (socket) => {
       username,
     });
 
-    io.to(roomId).emit(
-      "participants-update",
-      rooms[roomId]
-    );
+    io.to(roomId).emit("participants-update", rooms[roomId]);
 
-    if (!roomFlashcards[roomId]) {
-      roomFlashcards[roomId] = [];
-    }
+    // FLASHCARDS INIT
+    socket.emit("flashcards-update", roomFlashcards[roomId]);
 
-    socket.emit(
-      "flashcards-update",
-      roomFlashcards[roomId]
-    );
+    // 🔥 SEND WHITEBOARD HISTORY
+    socket.emit("whiteboard-history", roomDrawings[roomId]);
   });
 
   // CHAT
   socket.on("send-message", (data) => {
-    io.to(data.roomId).emit(
-      "receive-message",
-      data
-    );
+    io.to(data.roomId).emit("receive-message", data);
   });
 
   // FLASHCARDS
   socket.on("add-flashcard", (data) => {
     const { roomId, card } = data;
 
-    if (!roomFlashcards[roomId]) {
-      roomFlashcards[roomId] = [];
-    }
+    if (!roomFlashcards[roomId]) roomFlashcards[roomId] = [];
 
     roomFlashcards[roomId].push(card);
 
-    io.to(roomId).emit(
-      "flashcards-update",
-      roomFlashcards[roomId]
-    );
+    io.to(roomId).emit("flashcards-update", roomFlashcards[roomId]);
   });
 
   // POMODORO
@@ -128,13 +103,36 @@ io.on("connection", (socket) => {
     }, 1000);
   });
 
-  // WHITEBOARD
+  // =========================
+  // WHITEBOARD (PERSISTENTE)
+  // =========================
+
   socket.on("draw-start", (data) => {
-    socket.to(data.roomId).emit("draw-start", data);
+    const { roomId } = data;
+
+    if (!roomDrawings[roomId]) roomDrawings[roomId] = [];
+
+    roomDrawings[roomId].push({
+      type: "start",
+      x: data.x,
+      y: data.y,
+    });
+
+    socket.to(roomId).emit("draw-start", data);
   });
 
   socket.on("draw-move", (data) => {
-    socket.to(data.roomId).emit("draw-move", data);
+    const { roomId } = data;
+
+    if (!roomDrawings[roomId]) roomDrawings[roomId] = [];
+
+    roomDrawings[roomId].push({
+      type: "move",
+      x: data.x,
+      y: data.y,
+    });
+
+    socket.to(roomId).emit("draw-move", data);
   });
 
   // DISCONNECT
@@ -146,17 +144,10 @@ io.on("connection", (socket) => {
         (u) => u.id !== socket.id
       );
 
-      io.to(roomId).emit(
-        "participants-update",
-        rooms[roomId]
-      );
+      io.to(roomId).emit("participants-update", rooms[roomId]);
     }
   });
 });
-
-// =========================
-// PORT (IMPORTANTE EN RENDER)
-// =========================
 
 const PORT = process.env.PORT || 3001;
 

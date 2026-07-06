@@ -17,27 +17,44 @@ function Whiteboard({ roomId }) {
     ctx.lineCap = "round";
     ctx.strokeStyle = "#000";
 
-    const handleDrawStart = (data) => {
+    // 🔥 HISTORY (cuando entras o refrescas)
+    const handleHistory = (history) => {
+      history.forEach((data) => {
+        if (data.type === "start") {
+          ctx.beginPath();
+          ctx.moveTo(data.x, data.y);
+        }
+
+        if (data.type === "move") {
+          ctx.lineTo(data.x, data.y);
+          ctx.stroke();
+        }
+      });
+    };
+
+    const handleStart = (data) => {
       ctx.beginPath();
       ctx.moveTo(data.x, data.y);
     };
 
-    const handleDrawMove = (data) => {
+    const handleMove = (data) => {
       ctx.lineTo(data.x, data.y);
       ctx.stroke();
     };
 
-    socket.on("draw-start", handleDrawStart);
-    socket.on("draw-move", handleDrawMove);
+    socket.on("whiteboard-history", handleHistory);
+    socket.on("draw-start", handleStart);
+    socket.on("draw-move", handleMove);
 
     return () => {
-      socket.off("draw-start", handleDrawStart);
-      socket.off("draw-move", handleDrawMove);
+      socket.off("whiteboard-history", handleHistory);
+      socket.off("draw-start", handleStart);
+      socket.off("draw-move", handleMove);
     };
   }, []);
 
   // =========================
-  // POSICIÓN DEL MOUSE
+  // POSICIÓN
   // =========================
 
   const getPos = (e) => {
@@ -54,7 +71,7 @@ function Whiteboard({ roomId }) {
   };
 
   // =========================
-  // DRAW EVENTS
+  // DRAW
   // =========================
 
   const start = (e) => {
