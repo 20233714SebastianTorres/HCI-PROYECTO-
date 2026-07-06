@@ -5,10 +5,6 @@ function Whiteboard({ roomId }) {
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
 
-  // =========================
-  // SOCKET LISTENERS
-  // =========================
-
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -17,7 +13,7 @@ function Whiteboard({ roomId }) {
     ctx.lineCap = "round";
     ctx.strokeStyle = "#000";
 
-    // 🔥 HISTORY (cuando entras o refrescas)
+    // 🔥 HISTORIAL
     const handleHistory = (history) => {
       history.forEach((data) => {
         if (data.type === "start") {
@@ -42,20 +38,22 @@ function Whiteboard({ roomId }) {
       ctx.stroke();
     };
 
+    const handleClear = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+
     socket.on("whiteboard-history", handleHistory);
     socket.on("draw-start", handleStart);
     socket.on("draw-move", handleMove);
+    socket.on("whiteboard-cleared", handleClear);
 
     return () => {
       socket.off("whiteboard-history", handleHistory);
       socket.off("draw-start", handleStart);
       socket.off("draw-move", handleMove);
+      socket.off("whiteboard-cleared", handleClear);
     };
   }, []);
-
-  // =========================
-  // POSICIÓN
-  // =========================
 
   const getPos = (e) => {
     const canvas = canvasRef.current;
@@ -69,10 +67,6 @@ function Whiteboard({ roomId }) {
       y: (e.clientY - rect.top) * scaleY,
     };
   };
-
-  // =========================
-  // DRAW
-  // =========================
 
   const start = (e) => {
     const pos = getPos(e);
@@ -110,13 +104,22 @@ function Whiteboard({ roomId }) {
     drawingRef.current = false;
   };
 
-  // =========================
-  // UI
-  // =========================
+  const clearBoard = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    socket.emit("clear-whiteboard", roomId);
+  };
 
   return (
     <div className="whiteboard-container">
       <h2>Pizarra colaborativa</h2>
+
+      <button onClick={clearBoard}>
+        Borrar pizarra 🧹
+      </button>
 
       <canvas
         ref={canvasRef}

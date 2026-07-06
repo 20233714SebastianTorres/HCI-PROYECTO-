@@ -32,7 +32,7 @@ const io = new Server(server, {
 const rooms = {};
 const roomTimers = {};
 const roomFlashcards = {};
-const roomDrawings = {}; // 🔥 WHITEBOARD STORAGE
+const roomDrawings = {}; // 🔥 WHITEBOARD
 
 // =========================
 // SOCKET
@@ -60,10 +60,9 @@ io.on("connection", (socket) => {
 
     io.to(roomId).emit("participants-update", rooms[roomId]);
 
-    // FLASHCARDS INIT
     socket.emit("flashcards-update", roomFlashcards[roomId]);
 
-    // 🔥 SEND WHITEBOARD HISTORY
+    // 🔥 enviar pizarra al entrar
     socket.emit("whiteboard-history", roomDrawings[roomId]);
   });
 
@@ -104,7 +103,7 @@ io.on("connection", (socket) => {
   });
 
   // =========================
-  // WHITEBOARD (PERSISTENTE)
+  // WHITEBOARD (DRAW + STORE)
   // =========================
 
   socket.on("draw-start", (data) => {
@@ -133,6 +132,15 @@ io.on("connection", (socket) => {
     });
 
     socket.to(roomId).emit("draw-move", data);
+  });
+
+  // 🧹 CLEAR WHITEBOARD
+  socket.on("clear-whiteboard", (roomId) => {
+    if (roomDrawings[roomId]) {
+      roomDrawings[roomId] = [];
+    }
+
+    io.to(roomId).emit("whiteboard-cleared");
   });
 
   // DISCONNECT
