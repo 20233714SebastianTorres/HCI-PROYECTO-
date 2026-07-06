@@ -5,13 +5,40 @@ const cors = require("cors");
 
 const app = express();
 
-app.use(cors());
+// =========================
+// MIDDLEWARE
+// =========================
+
+// Puedes ajustar origins si tienes frontend deployado
+app.use(cors({
+  origin: "*"
+}));
+
+app.use(express.json());
+
+// =========================
+// BASIC ROUTES (IMPORTANTE PARA RENDER)
+// =========================
+
+// Evita "Cannot GET /"
+app.get("/", (req, res) => {
+  res.send("HCI Backend running 🚀");
+});
+
+// Health check (RENDER LO USA)
+app.get("/healthz", (req, res) => {
+  res.status(200).send("ok");
+});
+
+// =========================
+// SERVER
+// =========================
 
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "*", // producción demo (puedes restringir después)
     methods: ["GET", "POST"],
   },
 });
@@ -25,7 +52,7 @@ const roomTimers = {};
 const roomFlashcards = {};
 
 // =========================
-// SOCKET
+// SOCKET LOGIC
 // =========================
 
 io.on("connection", (socket) => {
@@ -35,9 +62,7 @@ io.on("connection", (socket) => {
   socket.on("join-room", ({ roomId, username }) => {
     socket.join(roomId);
 
-    if (!rooms[roomId]) {
-      rooms[roomId] = [];
-    }
+    if (!rooms[roomId]) rooms[roomId] = [];
 
     rooms[roomId] = rooms[roomId].filter(
       (u) => u.id !== socket.id
@@ -93,18 +118,12 @@ io.on("connection", (socket) => {
 
     let timeLeft = 25 * 60;
 
-    io.to(roomId).emit(
-      "pomodoro-update",
-      timeLeft
-    );
+    io.to(roomId).emit("pomodoro-update", timeLeft);
 
     roomTimers[roomId] = setInterval(() => {
       timeLeft--;
 
-      io.to(roomId).emit(
-        "pomodoro-update",
-        timeLeft
-      );
+      io.to(roomId).emit("pomodoro-update", timeLeft);
 
       if (timeLeft <= 0) {
         clearInterval(roomTimers[roomId]);
@@ -113,22 +132,13 @@ io.on("connection", (socket) => {
     }, 1000);
   });
 
-  // =========================
   // WHITEBOARD
-  // =========================
-
   socket.on("draw-start", (data) => {
-    socket.to(data.roomId).emit(
-      "draw-start",
-      data
-    );
+    socket.to(data.roomId).emit("draw-start", data);
   });
 
   socket.on("draw-move", (data) => {
-    socket.to(data.roomId).emit(
-      "draw-move",
-      data
-    );
+    socket.to(data.roomId).emit("draw-move", data);
   });
 
   // DISCONNECT
@@ -148,6 +158,12 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(3001, () => {
-  console.log("server running on 3001");
+// =========================
+// PORT (IMPORTANTE EN RENDER)
+// =========================
+
+const PORT = process.env.PORT || 3001;
+
+server.listen(PORT, () => {
+  console.log("server running on", PORT);
 });
